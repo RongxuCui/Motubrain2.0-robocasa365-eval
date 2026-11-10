@@ -1,0 +1,23 @@
+# Conda environment for the RoboCasa365 PolicyServer (model inference).
+#
+#   conda env create -f environment-policy.yml
+#
+# All public packages. The pip dependencies live in requirements-policy.txt so
+# there is one list to maintain; this file only adds the interpreter and the
+# CUDA PyTorch build.
+#
+# PyTorch is NOT pinned here on purpose: the wheel has to match your CUDA
+# driver, and conda's `pytorch` build often lags. Create the environment, then
+# install PyTorch following https://pytorch.org, then the pip requirements.
+#
+# Reference points: `ss-soma` requires Python >= 3.11; the environment used for
+# the reference evaluation ran Python 3.13 with a CUDA 12.x PyTorch (2.9-2.12
+# were both exercised). Anything in that range should work.
+name: rc365-policy
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  - pip
+  - pip:
+      - -r requirements-policy.txt

@@ -1,0 +1,100 @@
+# RoboCasa365 (robocasa v1.0.1) controller config.
+#
+# Distinct from `hardware/robocasa/` which targets robocasa v0.2.0 (the 24-task
+# "robocasa-50" checkout). The two are NOT interchangeable:
+#   - v0.2 used obj_instance_split "A"/"B"; 365 uses split "pretrain"/"target"
+#     and raises ValueError on anything else.
+#   - v0.2 registry keys were SINGLE_STAGE_/MULTI_STAGE_TASK_DATASETS;
+#     365 uses ATOMIC_/COMPOSITE_TASK_DATASETS (65 + 252 tasks).
+#   - Many v0.2 task names (all PnP*, the door tasks, CoffeePressButton) are
+#     not registered in 365.
+#
+# We build envs through `robocasa.utils.env_utils.create_env` rather than
+# calling robosuite.make directly, so the split -> (object instances, kitchen
+# scenes) mapping stays in sync with the upstream eval protocol.
+
+robocasa365_dir: "${ROBOCASA365_DIR}"
+# Deliberately NOT ${ROBOSUITE_DIR}: that stays on robosuite 1.5.1 for the v0.2
+# `robocasa` and `robocasa_gr1` adapters. robocasa 1.0.1 needs master (1.5.2)
+# for robosuite.utils.mjcf_utils.get_elements.
+robosuite_dir: "${ROBOCASA365_ROBOSUITE_DIR}"
+
+# Robot. 365 renamed PandaMobile -> PandaOmron (kitchen.py keeps a backward-compat
+# alias, but use the new name).
+robots: "PandaOmron"
+
+# Evaluation split. One of {pretrain, target, all}.
+#   target   -> target object instances + the 10 held-out kitchen scenes
+#   pretrain -> pretrain object instances + the 2500-scene pool
+# create_env derives obj_instance_split / layout_and_style_ids from this; do not
+# set them by hand.
+split: "pretrain"
+
+# Which tasks to evaluate. `task_set` names a key in
+# robocasa.utils.dataset_registry.TASK_SET_REGISTRY, e.g.
+#   target50, atomic_seen, composite_seen, composite_unseen,
+#   pretrain50/100/200/300, all_atomic_tasks, all_composite_tasks, all_tasks,
+#   lifelong_learning_phase1..4
+# CLI --task-set / --tasks override this.
+task_set: "target50"
+
+# Cameras. Render at 256x256 to match the robocasa365-baseline checkpoint's
+# native training resolution; rendering smaller (e.g. 224) forces a
+# padding-resize up to 256 at inference and adds letterbox bars the model
+# never saw during training.
+camera_height: 256
+camera_width: 256
+flip_images: true                 # robosuite emits OpenGL bottom-up images
+randomize_cameras: false
+
+# Proprio convention. "base_relative" matches the official 365 GR00T mapping in
+# robocasa/wrappers/gym_wrapper.py (base_to_eef_* + base pose). "absolute" keeps
+# the older world-frame eef_pos/eef_quat layout used by hardware/robocasa.
+# Must match how the checkpoint was trained.
+proprio: "base_relative"
+
+# Episode horizon. Per-task horizons come from the registry
+# (dataset_registry_utils.get_task_horizon); this is only the fallback for tasks
+# missing a horizon entry.
+max_steps: 500
+num_steps_wait: 10                # zero-action steps after reset to settle physics
+
+# Action conventions.
+# The raw robosuite PandaOmron env (create_env -> robosuite.make) runs
+# HYBRID_MOBILE_BASE and expects a 12-dim action laid out as:
+#   [eef_pos(3), eef_rot(3), gripper(1), base_motion(4), control_mode(1)]
+#
+# The robocasa365-baseline checkpoint instead emits the ARIO GR00T layout
+# (robocasa/models/assets/groot_dataset_assets/PandaOmron_modality.json):
+#   [base_motion(4), control_mode(1), eef_pos(3), eef_rot(3), gripper_close(1)]
+# with the two binary dims (control_mode, gripper_close) stored as -1/+1.
+#
+# action_layout tells ActionWrapper how to map the policy output onto the env:
+#   "ario_groot" (default) -> reorder + threshold the signed binary dims at
+#       zero to produce clean {-1, +1} values.
+#   "env" -> the policy already emits the raw env order; pass 12-dim through and
+#       pad 7-dim manipulation actions with `base_and_mode_action`.
+# control_mode < 0 keeps the arm controller active (base mode is > 0).
+action_type: "eef"
+action_layout: "ario_groot"
+base_and_mode_action: [0.0, 0.0, 0.0, 0.0, -1.0]
+
+# Episode seeding. The env is seeded once per task; robosuite's hard_reset
+# rebuilds the scene on every reset() and draws the next layout/style from the
+# env rng, so successive episodes get different scenes deterministically.
+deterministic: true
+seed: 195
+
+# Rebuild the whole env per episode instead of reusing it. Not needed on 365
+# (robosuite base.reset() already destroys the sim and re-runs _load_model when
+# hard_reset=True) and much slower across 317 tasks. Kept as an escape hatch.
+rebuild_env_each_episode: false
+
+# Executor config (SyncExecutor). Sim is not real-time; effectively bypass sleep.
+executor:
+  action:
+    publish_rate: 10000
+    interpolation:
+      enabled: false
+  filter:
+    enabled: false

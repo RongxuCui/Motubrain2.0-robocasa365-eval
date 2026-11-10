@@ -1,0 +1,22 @@
+# Model weights and the training snapshot they sit beside (tens of GB).
+ss-soma/outputs/
+
+# Evaluation outputs: large, and they embed absolute paths and results.
+RealWorldInference/eval_results/
+
+# Local scratch
+__pycache__/
+*.py[cod]
+
+# Internal provenance notes: records what was trimmed from the private
+# source repositories, so it is not part of the public bundle.
+MANIFEST.md
+
+# Compares the portable operators against the proprietary kernels they
+# replaced, so it names those kernels' module paths throughout. Internal only;
+# it also needs packages a public user does not have.
+tools/verify_portable_ops.py
+
+# Internal cluster-submission hook; not used for local GPU runs.
+.sslaunch/
+.sslaunch-post-deploy

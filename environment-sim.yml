@@ -1,0 +1,25 @@
+# Conda environment for the RoboCasa365 simulation worker (MuJoCo + robosuite).
+#
+#   conda env create -f environment-sim.yml
+#   conda activate rc365-sim
+#   pip install --no-deps -e /path/to/robosuite-master
+#   pip install --no-deps -e /path/to/robocasa
+#
+# The pip dependencies live in requirements-sim.txt, including the exact
+# mujoco and numpy versions robocasa asserts at import time.
+#
+# robocasa and robosuite are installed from source on purpose: this adapter
+# needs robosuite 1.5.2, because robocasa 1.0.1 calls
+# `robosuite.utils.mjcf_utils.get_elements`, which 1.5.1 does not have.
+# Install them with --no-deps so they cannot pull a different numpy or mujoco.
+#
+# Keep this environment separate from the policy one: robosuite pins MuJoCo and
+# numpy versions that conflict with the policy stack.
+name: rc365-sim
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - -r requirements-sim.txt

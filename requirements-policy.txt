@@ -1,0 +1,53 @@
+# PolicyServer (model inference) — pip requirements.
+#
+#   pip install -r requirements-policy.txt
+#
+# All public packages; this bundle needs no proprietary kernel packages.
+#
+# Versions are pinned to the environment these were verified in (Python 3.13):
+# every module on the inference path imports, the policy config loads, and the
+# model builds with a state dict matching the checkpoint. The end-to-end GPU
+# evaluation ran on a sibling image of the same environment carrying PyTorch
+# 2.12, so both 2.9 and 2.12 are known to work.
+#
+# torch is pinned by version but not by CUDA build. The verified environment
+# had `2.9.1+cu130`, where the `+cu130` local tag comes from PyTorch's own
+# index rather than PyPI, so pinning it here would only resolve for people
+# installing from that index with a CUDA 13.0-capable driver.
+#
+# The plain pin below takes the default CUDA build from PyPI, which is what
+# most setups want. To reproduce the verified build exactly:
+#
+#   pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/cu130
+#
+# torch 2.12 was also exercised end to end; 2.4 is the floor, for
+# torch.nn.RMSNorm. `triton` is intentionally absent: the Linux torch wheels
+# carry it, and a separate pin can conflict with the chosen torch build.
+torch==2.9.1
+
+# Model stack
+numpy==1.26.4
+einops==0.8.1
+safetensors==0.5.3
+omegaconf==2.3.0
+pyyaml==6.0.2
+transformers==4.57.3     # T5GemmaModel; 4.53 is the first release to have it
+diffusers==0.35.2        # only BaseOutput is used
+tokenizers==0.22.1
+huggingface-hub==0.36.0
+
+# Observation and video handling
+opencv-python==4.11.0.86
+av==16.1.0
+imageio==2.37.2
+
+# Checkpoint and object-store paths
+megfile==5.0.2
+orjson==3.11.7
+
+# scipy 1.14.x is the last line compatible with numpy 1.26; newer scipy
+# requires numpy >= 2. Keep the two consistent if you move either pin.
+scipy==1.14.1
+
+# Depth-Anything-3
+addict==2.4.0
